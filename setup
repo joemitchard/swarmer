@@ -1,0 +1,4 @@
+#!/bin/bash
+./rebar get-deps
+./rebar co
+echo "swarmer setup complete."

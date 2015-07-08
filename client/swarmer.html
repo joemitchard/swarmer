@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html ng-app = "swarm">
+
+<head>
+  <title>Zombie Swarm</title>
+  <link rel="icon" 
+      type="image/png" 
+      href="img/zombie.png">
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+  
+  <script type="text/javascript" src="js/jquery.min.js"></script>
+  <script type="text/javascript" src="js/bootstrap.js"></script>
+  <script type="text/javascript" src="js/angular.min.js"></script>
+  <script src="js/d3.js" charset="utf-8"></script>
+  <script type="text/javascript" src="js/app.js"></script>
+  <script type="text/javascript" src="js/draw.js"></script>
+  
+</head>
+
+<body ng-controller = "SwarmController as swarmCtrl">
+
+<button type="button" class="btn" data-toggle="collapse" data-target="#controlPanel"><i class="glyphicon glyphicon-chevron-down"></i> <i class="glyphicon glyphicon-wrench"></i></button>
+<div id="controlPanel" class="collapse in">
+    <h1>Concurrent Zombie Swarm</h1>
+  <form name="panelForm" ng-controller="PanelController as panelCtrl" ng-submit="start()"  class="form-inline">
+    <fieldset>
+        
+	<label for="gridMaps" class="control-label" >Map</label>
+        <select name="gridMaps" class="form-control" ng-disabled="controlsFlag" data-ng-model="gridMap" data-ng-options="map.tag for map in gridMaps" ng-change="update()"></select>
+        
+	
+        <label for="gridScale" class="control-label">Grid Scale</label>
+        <select name="gridScale" class="form-control" ng-disabled="controlsFlag" data-ng-model="gridScale" data-ng-options="item for item in gridScaleOpts" ng-change="update()"></select>
+
+        <label for="swarmSize" class="control-label">Swarm Size</label>
+        <select name="swarmSize" class="form-control" ng-disabled="controlsFlag" data-ng-model="swarmSize" data-ng-options="item for item in swarmSizeOpts" ng-change="update()"></select>
+
+        <label for="popSize" class="control-label">Population Size</label>
+        <select name="popSize" class="form-control" ng-disabled="controlsFlag" data-ng-model="popSize" data-ng-options="item for item in popSizeOpts" ng-change="update()"></select>
+
+        <label for="foodAmount" class="control-label">Amount of food</label>
+        <select name="foodAmount" class="form-control" ng-disabled="controlsFlag" data-ng-model="foodAmount" data-ng-options="item for item in foodAmountOpts" ng-change="update()"></select>
+
+
+
+        <button id="start-btn" type="submit" class="btn btn-primary" ng-disabled="runningFlag" >Start</button>
+        <button type="button" class="btn" ng-disabled="!runningFlag"ng-click="pause()"> Pause</button>
+      </fieldset>
+      <button type="button" class="btn" data-toggle="collapse" data-target="#inspector"><i class="glyphicon glyphicon-chevron-down"></i> <i class="glyphicon glyphicon-eye-open"></i></button>
+	<div id="inspector" class="collapse out">
+	  <div class="container-fluid">
+	    <div class="row-fluid" ng-repeat="item in realInspectList">
+	      <p class="col-md-1">{{item.type}} #{{item.id}}</p>
+	      <p class="col-md-1">x:{{item.x}},y:{{item.y}} x velocity:{{item.x_velocity}},y velocity:{{item.y_velocity}}</p>
+	      <p class="col-md-5">hlist:{{item.h_list}}</p>
+	      <p class="col-md-5">zlist:{{item.z_list}}</p>
+	    </div>
+	  </div>
+	  </div>
+	</div>
+  </form>
+</div>
+
+<!-- main display -->
+
+			<hr>
+			<svg>
+			<defs>
+
+			  <pattern id="grass" x="0" y="0" height="64" width="64" patternUnits="userSpaceOnUse" ><image height="64" width="64" xlink:href="img/grasstile.jpg"></image></pattern>
+			   <pattern id="brick" x="0" y="0" height="50" width="50" patternUnits="userSpaceOnUse" ><image height="50" width="50" xlink:href="img/bricktile.jpg"></image></pattern>
+
+			</defs>
+			</svg>
+			<!-- end of display -->
+		</div> <!-- end span10 -->
+	</div> <!-- end fluid row -->
+</div> <!-- end container -->
+
+</body>
+
+</html>

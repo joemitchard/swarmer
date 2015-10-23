@@ -456,7 +456,7 @@ get_supplies_list() ->
   supervisor:which_children(supplies_sup).
 
 avoidObs(Ob_List,TileSize,Rows) ->
-  random:seed(now()),
+  random:seed(erlang:monotonic_time()),
   X =random:uniform(TileSize*Rows-1),
   Y =random:uniform(TileSize*Rows-1),
   case lists:any(fun({_T,{A,B}}) -> {X div 5,Y div 5}=={A,B} end,Ob_List) of

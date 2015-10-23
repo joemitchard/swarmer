@@ -36,7 +36,7 @@
                 z_list,h_list,
                 energy,energy_state}).
 
-start_link(X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Speed,Bearing) -> 
+start_link(X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Speed,Bearing) ->
 	gen_fsm:start_link(?MODULE,[X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Speed,Bearing],[]).
 
 
@@ -47,20 +47,20 @@ start(Pid) ->
 pause(Pid) ->
     gen_fsm:send_all_state_event(Pid, pause).
 
-unpause(Pid) -> 
+unpause(Pid) ->
     gen_fsm:send_event(Pid,unpause).
 
 get_state(Pid) ->
     catch gen_fsm:sync_send_all_state_event(Pid, get_state).
 
 init([X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Speed,_Bearing]) ->
-	random:seed(erlang:now()),
+	random:seed(erlang:monotonic_time()),
     tile:summon_entity(Tile,{self(),{X,Y}, zombie}),
-	{ok,initial,#state{id = list_to_binary(pid_to_list(self())), 
-                       tile = Tile,viewer = Viewer, x = X, y = Y,speed=Speed, 
+	{ok,initial,#state{id = list_to_binary(pid_to_list(self())),
+                       tile = Tile,viewer = Viewer, x = X, y = Y,speed=Speed,
                        type =zombie,
                        viewerStr = list_to_binary(pid_to_list(Viewer)),
-                       tile_size = TileSize, num_columns = NumColumns, 
+                       tile_size = TileSize, num_columns = NumColumns,
                        num_rows = NumRows,
                        x_velocity = 0, y_velocity = 0,
                        energy = ?ENERGY_INIT, energy_state = ok}}.
@@ -72,7 +72,7 @@ init([X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Speed,_Bearing]) ->
 initial(start,State) ->
     gen_fsm:send_event_after(State#state.speed, move),
 	{next_state,aimless,State}.
-	
+
 aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                     num_columns = NumColumns, num_rows = NumRows,
                     tile = Tile, type = Type,
@@ -87,7 +87,7 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                                 {ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
                                     {abs(swarm_libs:pyth(X,Y,ZX,ZY)),
                                     {ZomPid,{ZType,{{ZX,ZY},
-                                    {ZX_Velocity,ZY_Velocity}}}}} 
+                                    {ZX_Velocity,ZY_Velocity}}}}}
                             end,NoSelfList),
 
     Olist = viewer:get_obs(NewViewer),
@@ -96,14 +96,14 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                                 fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
                                     Dist =< ?SIGHT
                                 end,Z_DistanceList),
-    
+
     Z_Sight_List = lists:filter(
                                 fun({_,
                                     {_,{_,{{ZX,ZY},
                                     {_,_}}}}}) ->
                                       los:findline(X,Y,ZX,ZY,Olist)
                                 end,Z_FilteredList),
-                                      
+
     Zlist = lists:keysort(1,Z_Sight_List),
 
 
@@ -111,10 +111,10 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
     HumanList = viewer:get_humans(NewViewer),
 
     H_DistanceList = lists:map(fun(
-                                {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) -> 
+                                {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
                                     {abs(swarm_libs:pyth(X,Y,HX,HY)),
                                     {Hpid,{human,{{HX,HY},
-                                    {HXV,HYV}}}}} 
+                                    {HXV,HYV}}}}}
                                 end,HumanList),
 
     H_FilteredList = lists:filter(
@@ -128,8 +128,8 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                                     {_,_}}}}}) ->
                                       los:findline(X,Y,HX,HY,Olist)
                                 end,H_FilteredList),
-    
-    
+
+
     Hlist = lists:keysort(1,H_Sight_List),
 
     %Olist = viewer:get_obs(NewViewer),
@@ -137,26 +137,26 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
     Hlist_Json = jsonify_list(Hlist),
 
     % calculate new energy levls
-    {NewEnergy, NewEnergyState} = case Energy of 
+    {NewEnergy, NewEnergyState} = case Energy of
         Value when Value =:= 0 ->
             {Energy,slowed};
         _ ->
             {Energy-1,EnergyState}
     end,
 
-    {BoidsX,BoidsY,FinalEnergy} = 
+    {BoidsX,BoidsY,FinalEnergy} =
     case make_choice(Zlist,Hlist,State) of
         {Bx,By,eaten} ->
             {Bx,By,?ENERGY_INIT};
         {Bx,By} ->
             {Bx,By,NewEnergy}
-    end, 
-    
+    end,
+
     New_X_Velocity = X_Velocity + BoidsX,
     New_Y_Velocity = Y_Velocity + BoidsY,
 
     % slow entities down when they are out of energy
-    {Limited_X_Velocity,Limited_Y_Velocity} = case NewEnergyState of 
+    {Limited_X_Velocity,Limited_Y_Velocity} = case NewEnergyState of
         slowed ->
             boids_functions:limit_speed(?LIMIT_SLOW,X,Y,New_X_Velocity,New_Y_Velocity);
         _ ->
@@ -164,15 +164,15 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
     end,
 
     TargetX = round(X + Limited_X_Velocity),
-    TargetY = round(Y + Limited_Y_Velocity), 
+    TargetY = round(Y + Limited_Y_Velocity),
 
-    {NewX,NewY,ObsXVel,ObsYVel} = obstructed(Olist,X,Y,TargetX,TargetY,Limited_X_Velocity,Limited_Y_Velocity), 
+    {NewX,NewY,ObsXVel,ObsYVel} = obstructed(Olist,X,Y,TargetX,TargetY,Limited_X_Velocity,Limited_Y_Velocity),
 
     case (NewX < 0) or (NewY < 0) or (NewX > NumColumns * (TileSize-1)) or (NewY > NumRows * (TileSize-1)) of
         true -> % We are off the screen!
             {stop, shutdown, State};
         false ->
-            NewTile = 
+            NewTile =
             % This calculates if the human is still in it's initial tile
             case {trunc(X) div TileSize, trunc(NewX) div TileSize, trunc(Y) div TileSize, trunc(NewY) div TileSize} of
                 {XTile, XTile, YTile, YTile} -> % In same tile
@@ -181,18 +181,18 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                     tile:remove_entity(Tile, self(), Type),
                     list_to_atom("tile" ++  "X" ++ integer_to_list(NewXTile) ++  "Y" ++ integer_to_list(NewYTile))
             end,
-            
+
             {ReturnedX,ReturnedY} = tile:update_entity(NewTile,{self(),{X,Y},Type},{NewX, NewY}, {New_X_Velocity, New_Y_Velocity}),
-            
+
             gen_fsm:send_event_after(Speed, move),
-            
-            {next_state,aimless,State#state{x=ReturnedX,y=ReturnedY, 
-                                            tile = NewTile, z_list = Zlist_Json, h_list = Hlist_Json, 
+
+            {next_state,aimless,State#state{x=ReturnedX,y=ReturnedY,
+                                            tile = NewTile, z_list = Zlist_Json, h_list = Hlist_Json,
                                             x_velocity = ObsXVel,y_velocity = ObsYVel, viewer = NewViewer,
                                             energy = FinalEnergy, energy_state = NewEnergyState}}
     end.
 
-pause(move, State) -> 
+pause(move, State) ->
     %% If we get a move event start the timer again but don't actually move
     %% Ensure we will move after unpause.
     gen_fsm:send_event_after(State#state.speed, move),
@@ -200,7 +200,7 @@ pause(move, State) ->
 pause(unpause, #state{paused_state = PausedState} = State) ->
 	{next_state,PausedState,State}.
 
-%Events for fsm.	
+%Events for fsm.
 get_surroundings(_Pid,#state{viewer=Viewer} = State) ->
 	Map = viewer:get_population(Viewer),
 		case maps:size(Map) of
@@ -216,7 +216,7 @@ find_visible([],_State,Visible) ->
 	Visible;
 find_visible([[{Pid,{_Otherx,_Othery}}]|_Tail],_State,_Visible) ->
 	error_logger:error_report(Pid),
-	[].	
+	[].
 
 %stuff for gen_fsm.
 terminate(_,_StateName, #state{tile = Tile, type = Type} = _StateData) ->
@@ -246,15 +246,15 @@ make_choice([],[],_State) ->
             {0,-1};
         3->
             {0,1};
-        4-> 
+        4->
             {-1,0};
         5->
             {-1,-1};
         6->
             {-1,1};
-        7-> 
+        7->
             {1,0};
-        8-> 
+        8->
             {1,-1};
         9->
             {1,1}
@@ -264,7 +264,7 @@ make_choice([],[],_State) ->
 
 make_choice(_,[{Dist, {Pid,{_,{{_,_},{_,_}}}}}|_Hlist],_State) when Dist < ?PERSONAL_SPACE ->
 %    KILL HUMAN;
-    case random:uniform(3) of 
+    case random:uniform(3) of
         1 ->
             {0,0};
         _ ->
@@ -374,4 +374,3 @@ jsonify_list([{Dist, {Pid,{Type,{{HeadX,HeadY},{Head_X_Vel,Head_Y_Vel}}}}}|Ls], 
     StringPid = list_to_binary(pid_to_list(Pid)),
     NewList = [[{id, StringPid},{type, Type}, {dist, Dist}, {x, HeadX}, {y, HeadY}, {x_velocity, Head_X_Vel}, {y_velocity, Head_Y_Vel}]| List],
     jsonify_list(Ls, NewList).
-

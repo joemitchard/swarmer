@@ -72,7 +72,7 @@ get_state(Pid) ->
     catch gen_fsm:sync_send_all_state_event(Pid, get_state).
 
 init([X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Timeout]) ->
-    random:seed(erlang:now()),
+    random:seed(erlang:monotonic_time()),
     tile:summon_entity(Tile,{self(),{X,Y}, human}),
     {ok,initial,#state{id = list_to_binary(pid_to_list(self())),
                        tile = Tile,viewer = Viewer, x = X, y = Y,
@@ -107,7 +107,7 @@ run(check_pos,#state{x=X, y=Y, obs_list = Olist, tile = Tile, type = Type} = Sta
             {next_state,run,State}
     end;
 
-run(move,#state{x = X, y = Y, tile_size = TileSize,
+run(move,#state{    x = X, y = Y, tile_size = TileSize,
                     num_columns = NumColumns, num_rows = NumRows,
                     tile = Tile, type = Type,
                     x_velocity = X_Velocity, y_velocity = Y_Velocity,
@@ -211,6 +211,7 @@ run(move,#state{x = X, y = Y, tile_size = TileSize,
                 {_, NewXTile, _, NewYTile} ->
                     % Left the tile, find new tile and remove self from old one.
                     tile:remove_entity(Tile, self(), Type),
+                    % Generates an atom based on location, this will be a name of a tile registered to Erlang
                     list_to_atom("tile" ++  "X" ++ integer_to_list(NewXTile) ++  "Y" ++ integer_to_list(NewYTile))
             end,
 

@@ -189,24 +189,21 @@ handle_call({make_grid,{Rows,Columns,TileSize,Obs_list}},_From,State) ->
 
 handle_call({swarm,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, zombie_sup),
-  supervisor:restart_child(swarm_sup, zombie_sup),
+  swarm_libs:restart_proc(swarm_sup, zombie_sup),
   create_swarm(State,Num),
   do_action_entities_type(pause, zombies),
   {reply,ok,State};
 
 handle_call({mob,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, human_sup),
-  supervisor:restart_child(swarm_sup, human_sup),
+  swarm_libs:restart_proc(swarm_sup, human_sup),
   create_mob(State,Num),
   do_action_entities_type(pause, humans),
   {reply,ok,State};
 
 handle_call({items,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, supplies_sup),
-  supervisor:restart_child(swarm_sup, supplies_sup),
+  swarm_libs:restart_proc(swarm_sup, supplies_sup),
   place_items(State,Num),
   {reply,ok,State}.
 

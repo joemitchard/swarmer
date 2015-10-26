@@ -1,5 +1,5 @@
 -module(swarm_libs).
--export([round/2, pyth/4, cleanup/6]).
+-export([round/2, pyth/4, cleanup/6, restart_proc/2]).
 
 round(Num,Precision) ->
 	P = math:pow(10,Precision),
@@ -24,3 +24,7 @@ cleanup(SwarmSup, ZombieSup, HumanSup, SuppliesSup, TileSup, ViewerSup) ->
 	supervisor:terminate_child(SwarmSup, ViewerSup),
 	supervisor:restart_child(SwarmSup, ViewerSup),
 	ok.
+
+restart_proc(SwarmSup, Sup) ->
+	supervisor:terminate_child(SwarmSup, Sup),
+	supervisor:restart_child(SwarmSup, Sup).

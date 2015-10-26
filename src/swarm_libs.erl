@@ -1,5 +1,6 @@
 -module(swarm_libs).
--export([round/2, pyth/4, cleanup/6, restart_proc/2]).
+-export([round/2, pyth/4, cleanup/6, restart_proc/2, jsonify_list/1,
+					obstructedmove/7]).
 
 round(Num,Precision) ->
 	P = math:pow(10,Precision),
@@ -28,3 +29,87 @@ cleanup(SwarmSup, ZombieSup, HumanSup, SuppliesSup, TileSup, ViewerSup) ->
 restart_proc(SwarmSup, Sup) ->
 	supervisor:terminate_child(SwarmSup, Sup),
 	supervisor:restart_child(SwarmSup, Sup).
+
+	%%% Obstructions on corners.
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY > 0)->
+	    {X-1,Y-1,-1,-1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY < 0)->
+	    {X-1,Y+1,-1,1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY > 0)->
+	    {X+1,Y-1,1,-1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY < 0)->
+	    {X+1,Y+1,1,1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY == 0)->
+	    {X-1,Y,-1,0};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY == 0)->
+	    {X+1,Y,1,0};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY > 0)->
+	    {X,Y-1,0,-1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY < 0)->
+	    {X,Y+1,0,1};
+	obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY == 0)->
+	    {X,Y,0,0};
+
+	%%% Obstructions on Y axis.
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY > 0)->
+	    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
+	        false->
+	            {NewX,Y-1,VelX,-1}
+	    end;
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY < 0)->
+	    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
+	        false->
+	            {NewX,Y+1,VelX,1}
+	    end;
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY == 0)->
+	    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
+	        false->
+	            {NewX,Y,VelX,0}
+	    end;
+
+	%%% Obstructions on X axis.
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX > 0)->
+	    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
+	        false->
+	            {X-1,NewY,-1,VelY}
+	    end;
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX < 0)->
+	    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
+	        false->
+	            {X+1,NewY,1,VelY}
+	    end;
+	obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX== 0)->
+	    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
+	    case Member of
+	        true->
+	            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
+	        false->
+	            {X,NewY,0,VelY}
+	    end.
+
+jsonify_list([]) ->
+    [];
+jsonify_list(List) ->
+    jsonify_list(List,[]).
+
+jsonify_list([], List) ->
+    List;
+jsonify_list([{Dist, {Pid,{Type,{{HeadX,HeadY},{Head_X_Vel,Head_Y_Vel}}}}}|Ls], List) ->
+    StringPid = list_to_binary(pid_to_list(Pid)),
+    NewList = [[{id, StringPid},{type, Type}, {dist, Dist}, {x, HeadX}, {y, HeadY}, {x_velocity, Head_X_Vel}, {y_velocity, Head_Y_Vel}]| List],
+    jsonify_list(Ls, NewList).

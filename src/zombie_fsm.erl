@@ -133,8 +133,8 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
     Hlist = lists:keysort(1,H_Sight_List),
 
     %Olist = viewer:get_obs(NewViewer),
-    Zlist_Json = jsonify_list(Zlist),
-    Hlist_Json = jsonify_list(Hlist),
+    Zlist_Json = swarm_libs:jsonify_list(Zlist),
+    Hlist_Json = swarm_libs:jsonify_list(Hlist),
 
     % calculate new energy levls
     {NewEnergy, NewEnergyState} = case Energy of
@@ -289,88 +289,7 @@ obstructed(Olist,X,Y,NewX,NewY,VelX,VelY) ->
     Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso NewX div 5 == A end,Olist),
     case Member of
         true->
-            obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
+            swarm_libs:obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
         false->
             {NewX,NewY,VelX,VelY}
     end.
-%Obstructions on corners.
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY > 0)->
-    {X-1,Y-1,-1,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY < 0)->
-    {X-1,Y+1,-1,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY > 0)->
-    {X+1,Y-1,1,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY < 0)->
-    {X+1,Y+1,1,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY == 0)->
-    {X-1,Y,-1,0};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY == 0)->
-    {X+1,Y,1,0};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY > 0)->
-    {X,Y-1,0,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY < 0)->
-    {X,Y+1,0,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY == 0)->
-    {X,Y,0,0};
-%Obstructions on Y axis.
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY > 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y-1,VelX,-1}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY < 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y+1,VelX,1}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY == 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y,VelX,0}
-    end;
-
-%Obstructions on X axis.
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX > 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X-1,NewY,-1,VelY}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX < 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X+1,NewY,1,VelY}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX== 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X,NewY,0,VelY}
-    end.
-jsonify_list([]) ->
-    [];
-jsonify_list(List) ->
-    jsonify_list(List,[]).
-
-jsonify_list([], List) ->
-    List;
-jsonify_list([{Dist, {Pid,{Type,{{HeadX,HeadY},{Head_X_Vel,Head_Y_Vel}}}}}|Ls], List) ->
-    StringPid = list_to_binary(pid_to_list(Pid)),
-    NewList = [[{id, StringPid},{type, Type}, {dist, Dist}, {x, HeadX}, {y, HeadY}, {x_velocity, Head_X_Vel}, {y_velocity, Head_Y_Vel}]| List],
-    jsonify_list(Ls, NewList).

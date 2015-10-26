@@ -72,7 +72,7 @@ get_state(Pid) ->
     catch gen_fsm:sync_send_all_state_event(Pid, get_state).
 
 init([X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Timeout]) ->
-    random:seed(erlang:now()),
+    random:seed(erlang:monotonic_time()),
     tile:summon_entity(Tile,{self(),{X,Y}, human}),
     {ok,initial,#state{id = list_to_binary(pid_to_list(self())),
                        tile = Tile,viewer = Viewer, x = X, y = Y,
@@ -107,7 +107,7 @@ run(check_pos,#state{x=X, y=Y, obs_list = Olist, tile = Tile, type = Type} = Sta
             {next_state,run,State}
     end;
 
-run(move,#state{x = X, y = Y, tile_size = TileSize,
+run(move,#state{    x = X, y = Y, tile_size = TileSize,
                     num_columns = NumColumns, num_rows = NumRows,
                     tile = Tile, type = Type,
                     x_velocity = X_Velocity, y_velocity = Y_Velocity,
@@ -133,14 +133,12 @@ run(move,#state{x = X, y = Y, tile_size = TileSize,
                                       los:findline(X,Y,IX,IY,Olist)
                                 end,Ilist),
 
-
-
     NewMemoryMap = build_memory(I_Sight_List, MemoryMap),
 
     %Olist = viewer:get_obs(Viewer),
 
-    Zlist_Json = jsonify_list(Zlist),
-    Hlist_Json = jsonify_list(Hlist),
+    Zlist_Json = swarm_libs:jsonify_list(Zlist),
+    Hlist_Json = swarm_libs:jsonify_list(Hlist),
 
     % creates a new value for hunger and food, showing the humans getting
     % hungry over time
@@ -211,6 +209,7 @@ run(move,#state{x = X, y = Y, tile_size = TileSize,
                 {_, NewXTile, _, NewYTile} ->
                     % Left the tile, find new tile and remove self from old one.
                     tile:remove_entity(Tile, self(), Type),
+                    % Generates an atom based on location, this will be a name of a tile registered to Erlang
                     list_to_atom("tile" ++  "X" ++ integer_to_list(NewXTile) ++  "Y" ++ integer_to_list(NewYTile))
             end,
 
@@ -428,82 +427,12 @@ obstructed(Olist,X,Y,NewX,NewY,VelX,VelY) ->
     Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso NewX div 5 == A end,Olist),
     case Member of
         true->
-            obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
+            swarm_libs:obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
         false->
             {NewX,NewY,VelX,VelY}
     end.
 
-%%% Obstructions on corners.
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY > 0)->
-    {X-1,Y-1,-1,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY < 0)->
-    {X-1,Y+1,-1,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY > 0)->
-    {X+1,Y-1,1,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY < 0)->
-    {X+1,Y+1,1,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX > 0) and (VelY == 0)->
-    {X-1,Y,-1,0};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX < 0) and (VelY == 0)->
-    {X+1,Y,1,0};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY > 0)->
-    {X,Y-1,0,-1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY < 0)->
-    {X,Y+1,0,1};
-obstructedmove(_Olist,X,Y,NewX,NewY,VelX,VelY) when (X == NewX) and (Y == NewY) and (VelX == 0) and (VelY == 0)->
-    {X,Y,0,0};
 
-%%% Obstructions on Y axis.
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY > 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y-1,VelX,-1}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY < 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y+1,VelX,1}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewX-X)) >= (abs(NewY-Y))) and (VelY == 0)->
-    Member = lists:any(fun({A,B}) -> Y div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,X,NewY,VelX,VelY);
-        false->
-            {NewX,Y,VelX,0}
-    end;
-
-%%% Obstructions on X axis.
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX > 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X-1,NewY,-1,VelY}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX < 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X+1,NewY,1,VelY}
-    end;
-obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY) when ((abs(NewY-Y)) > (abs(NewX-X))) and (VelX== 0)->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso X div 5 == A end,Olist),
-    case Member of
-        true->
-            obstructedmove(Olist,X,Y,NewX,Y,VelX,VelY);
-        false->
-            {X,NewY,0,VelY}
-    end.
 
 %%% Calculate the new levels for hunger,energy
 %%% Also work out if the hunger state has changed
@@ -553,19 +482,6 @@ calc_new_hungry_xy(Hlist, Zlist, NearestItem, NewHungerState, X, Y, MemoryList, 
 %%%%%%==========================================================================
 %%%%%% List Organisation and Setup Functions
 %%%%%%==========================================================================
-
-%%% Turn a list into something JSON can deal with.
-jsonify_list([]) ->
-    [];
-jsonify_list(List) ->
-    jsonify_list(List,[]).
-
-jsonify_list([], List) ->
-    List;
-jsonify_list([{Dist, {Pid,{Type,{{HeadX,HeadY},{Head_X_Vel,Head_Y_Vel}}}}}|Ls], List) ->
-    StringPid = list_to_binary(pid_to_list(Pid)),
-    NewList = [[{id, StringPid},{type, Type}, {dist, Dist}, {x, HeadX}, {y, HeadY}, {x_velocity, Head_X_Vel}, {y_velocity, Head_Y_Vel}]| List],
-    jsonify_list(Ls, NewList).
 
 %%% Build a list of local zombie entities that are in sight
 build_zombie_list(Viewer, X, Y,Olist) ->

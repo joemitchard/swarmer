@@ -170,18 +170,8 @@ handle_call({make_grid,{Rows,Columns,TileSize,Obs_list}},_From,State) ->
   % End current environment setup, respawn after killing them
   % This prevents old processes being left around
   %kill entities
-  supervisor:terminate_child(swarm_sup, zombie_sup),
-  supervisor:terminate_child(swarm_sup, human_sup),
-  supervisor:terminate_child(swarm_sup, supplies_sup),
-  supervisor:restart_child(swarm_sup, zombie_sup),
-  supervisor:restart_child(swarm_sup, human_sup),
-  supervisor:restart_child(swarm_sup, supplies_sup),
-  %Kill tiles
-  supervisor:terminate_child(swarm_sup, tile_sup),
-  supervisor:restart_child(swarm_sup, tile_sup),
-  %Kill viewers
-  supervisor:terminate_child(swarm_sup, viewer_sup),
-  supervisor:restart_child(swarm_sup, viewer_sup),
+  _ = swarm_libs:cleanup(swarm_sup, zombie_sup, human_sup, supplies_sup, tile_sup, viewer_sup),
+
   Grid = populate_grid(Rows,Columns,TileSize),
 
   Viewers=add_viewers(Grid),
@@ -199,34 +189,23 @@ handle_call({make_grid,{Rows,Columns,TileSize,Obs_list}},_From,State) ->
 
 handle_call({swarm,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, zombie_sup),
-  supervisor:restart_child(swarm_sup, zombie_sup),
+  swarm_libs:restart_proc(swarm_sup, zombie_sup),
   create_swarm(State,Num),
   do_action_entities_type(pause, zombies),
   {reply,ok,State};
 
 handle_call({mob,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, human_sup),
-  supervisor:restart_child(swarm_sup, human_sup),
+  swarm_libs:restart_proc(swarm_sup, human_sup),
   create_mob(State,Num),
   do_action_entities_type(pause, humans),
   {reply,ok,State};
 
 handle_call({items,Num},_From,State) ->
   %kill entities
-  supervisor:terminate_child(swarm_sup, supplies_sup),
-  supervisor:restart_child(swarm_sup, supplies_sup),
+  swarm_libs:restart_proc(swarm_sup, supplies_sup),
   place_items(State,Num),
   {reply,ok,State}.
-
-%%% map a list of integers to [{Tile,{X,Y}},...] and pushes them into the relevant tile's State#state.obs_list
-%handle_call({create_obs_map,Obs_list,GridSize},_From,State) ->
-	%Cord_list = lists:map(fun(I)-> X=I rem 50, Y=I div 50, T = list_to_atom("tile" ++  "X" ++ integer_to_list(X div 10) ++  "Y" ++ integer_to_list(Y div 10)),{T,{X,Y}} end,Obs_list),
-    %error_logger:error_report(Cord_list),
-	%lists:foreach(fun(K) -> tile:set_obs_list(K,proplists:get_all_values(K,Cord_list)) end,proplists:get_keys(Cord_list)),
-
-  %{reply,ok,State#state{obs_list = Cord_list}}.
 
 handle_call(terminate,State) ->
   {stop,normal,State}.

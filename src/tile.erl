@@ -59,7 +59,7 @@
                 coords  ::  tuple(),
                 viewer  ::  pid(),
                 neighbours  ::  [pid()],
-                obs_list=[] :: list()}). 
+                obs_list=[] :: list()}).
 
 %%%%%%==========================================================================
 %%%%%% API
@@ -109,7 +109,7 @@ set_obs_list(Pid,New_obs_list) ->
 %%% provides api call to check if a pos() is obstructed
 check_obs(Pid,Pos) ->
 	gen_server:call(Pid,{check_obs,Pos}).
-	
+
 %%%%----------------------------------------------------------------------------
 %%%% @doc
 %%%% Update the entities position on the tile.
@@ -164,7 +164,7 @@ remove_entity(Pid, Entity, Type) ->
 -spec get_state(pid()) -> ok.
 get_state(Pid) ->
   gen_server:call(Pid,get_state).
- 
+
 %%%%----------------------------------------------------------------------------
 %%%% @doc
 %%%% Assign a viewer to the tile.
@@ -190,7 +190,7 @@ set_neighbours(Pid, NeighbourPids) ->
 %%%%----------------------------------------------------------------------------
 terminate(Pid) ->
     gen_server:cast(Pid, terminate).
-    
+
 
 %%%%%%==========================================================================
 %%%%%% gen_server Callbacks
@@ -199,7 +199,7 @@ terminate(Pid) ->
 init([Name,X,Y,Size]) ->
     % this registers the name and pid of the process
     erlang:register(Name, self()),
-    {ok, #state{xorigin = X, yorigin = Y, xlimit = X+Size-1, ylimit = Y+Size-1, 
+    {ok, #state{xorigin = X, yorigin = Y, xlimit = X+Size-1, ylimit = Y+Size-1,
                 coords = {X,Y,X+Size-1,Y+Size-1,Size}}}.
 
 %%%%-Calls----------------------------------------------------------------------
@@ -237,7 +237,7 @@ handle_call({update_entity, {ID,{OldX,OldY},Type},{NewX,NewY},Velocity},_From, S
     NewMap = maps:put(ID,{Type,{{TrueX,TrueY}, Velocity}},State#state.human_map),
     update_viewers(State#state.neighbours, Type, NewMap),
     {reply,{TrueX,TrueY},State#state{human_map = NewMap}};
-    
+
 %%%% pushes a list of obstructed coordinates into the state
 handle_call({set_obs_list,New_obs_list},_From,State) ->
     update_viewers(State#state.neighbours, obs_list, New_obs_list),
@@ -259,7 +259,7 @@ handle_cast({summon_entity,{ID,{X,Y},Type}}, #state{zombie_map =Zombie_Map} =Sta
 handle_cast({summon_entity,{ID,{X,Y}, Type}},#state{human_map =Human_Map} =State) when Type == human ->
     NewMap = maps:put(ID,{Type,{{X,Y},{0,0}}},Human_Map),
     update_viewers(State#state.neighbours, Type, NewMap),
-    {noreply,State#state{human_map = Human_Map}};
+    {noreply,State#state{human_map = NewMap}}; % CHANGE FROM HumanMap to NewMap
 
 %%%% Handle delete entity calls
 handle_cast({remove_entity,ID, zombie},#state{zombie_map =Zombie_Map} =State) ->
@@ -326,7 +326,7 @@ validmove(X,Y,NewX,NewY,State) when ((NewY - Y) > 0) and ((NewY - Y) > ?SPEED_HA
     validmove(X,Y,NewX,(Y + ?SPEED_HARD_LIMIT),State);
 
 validmove(X,Y,NewX,NewY,State) when ((NewY - Y) < 0) and ((NewY - Y) < -?SPEED_HARD_LIMIT)->
-    validmove(X,Y,NewX,(Y - ?SPEED_HARD_LIMIT),State);    
+    validmove(X,Y,NewX,(Y - ?SPEED_HARD_LIMIT),State);
 
 %% check obstacles and entity bouncing
 validmove(X,Y,NewX,NewY,#state{obs_list = ObsList} = State) ->
@@ -365,10 +365,10 @@ validmove_entity(X,Y, NewX, NewY, #state{zombie_map = Zmap, human_map = Hmap, ob
                     {ValidX,ValidY}
             end;
         % move valid, no clash.
-        _ -> 
+        _ ->
             {NewX,NewY}
     end.
-    
+
 %%% reflect away from an entitiy.
 reflect(X,Y,TargetX,TargetY)  when {TargetX - X,TargetY - Y} == {0,0} ->
     {X,Y};
@@ -389,7 +389,7 @@ reflect(X,Y,TargetX,TargetY)  when ((TargetX - X) > 0) and ((TargetY - Y) > 0) -
     case random:uniform(3) of
         1 ->
             {TargetX -?ENT_REFLECT_RATE, TargetY};
-        2 -> 
+        2 ->
             {TargetX -?ENT_REFLECT_RATE, TargetY -?ENT_REFLECT_RATE};
         3 ->
             {TargetX ,TargetY -?ENT_REFLECT_RATE}
@@ -399,7 +399,7 @@ reflect(X,Y,TargetX,TargetY)  when ((TargetX - X) < 0) and ((TargetY - Y) < 0) -
     case random:uniform(3) of
         1 ->
             {TargetX +?ENT_REFLECT_RATE, TargetY};
-        2 -> 
+        2 ->
             {TargetX +?ENT_REFLECT_RATE, TargetY +?ENT_REFLECT_RATE};
         3 ->
             {TargetX ,TargetY +?ENT_REFLECT_RATE}
@@ -409,7 +409,7 @@ reflect(X,Y,TargetX,TargetY)  when ((TargetX - X) < 0) and ((TargetY - Y) > 0) -
     case random:uniform(3) of
         1 ->
             {TargetX +?ENT_REFLECT_RATE, TargetY};
-        2 -> 
+        2 ->
             {TargetX +?ENT_REFLECT_RATE, TargetY -?ENT_REFLECT_RATE};
         3 ->
             {TargetX ,TargetY -?ENT_REFLECT_RATE}
@@ -419,7 +419,7 @@ reflect(X,Y,TargetX,TargetY)  when ((TargetX - X) > 0) and ((TargetY - Y) < 0) -
     case random:uniform(3) of
         1 ->
             {TargetX -?ENT_REFLECT_RATE, TargetY};
-        2 -> 
+        2 ->
             {TargetX -?ENT_REFLECT_RATE, TargetY +?ENT_REFLECT_RATE};
         3 ->
             {TargetX ,TargetY +?ENT_REFLECT_RATE}
@@ -428,7 +428,7 @@ reflect(X,Y,TargetX,TargetY)  when ((TargetX - X) > 0) and ((TargetY - Y) < 0) -
 
 %%% a function to work out the reflected position when going into an obstruction
 reflect_obs(OldX,OldY,Obs_list) ->
-    Ways_i_cant_go = 
+    Ways_i_cant_go =
         % [right,left,down,up]
         [do_check_obs({(OldX)+5,OldY},Obs_list),
         do_check_obs({(OldX)-5,OldY},Obs_list),
@@ -439,58 +439,58 @@ reflect_obs(OldX,OldY,Obs_list) ->
 % X,Y is obstructed or we wouldn't be here ...
 
 % all obstructed
-reflect_obs({OldX,OldY},[true,true,true,true]) -> 
+reflect_obs({OldX,OldY},[true,true,true,true]) ->
     {OldX,OldY};
 % up free
-reflect_obs({OldX,OldY},[true,true,true,false]) -> 
+reflect_obs({OldX,OldY},[true,true,true,false]) ->
     {OldX,OldY-?OBS_REFLECT_RATE};
 % down free
-reflect_obs({OldX,OldY},[true,true,false,true]) -> 
+reflect_obs({OldX,OldY},[true,true,false,true]) ->
     {OldX,OldY+?OBS_REFLECT_RATE};
 % left free
-reflect_obs({OldX,OldY},[true,false,true,true]) -> 
+reflect_obs({OldX,OldY},[true,false,true,true]) ->
     {OldX-?OBS_REFLECT_RATE,OldY};
 %right free
 reflect_obs({OldX,OldY},[false,true,true,true]) ->
     {OldX+?OBS_REFLECT_RATE,OldY};
 % up and down free
-reflect_obs({OldX,OldY},[true,true,false,false]) -> 
+reflect_obs({OldX,OldY},[true,true,false,false]) ->
     case random:uniform(2) of
         1 ->
             {OldX,OldY+?OBS_REFLECT_RATE};
-        2 -> 
+        2 ->
             {OldX,OldY-?OBS_REFLECT_RATE}
     end;
 % left and up free
-reflect_obs({OldX,OldY},[true,false,true,false]) -> 
+reflect_obs({OldX,OldY},[true,false,true,false]) ->
     case random:uniform(2) of
         1 ->
             {OldX-?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY-?OBS_REFLECT_RATE}
     end;
 % left and down free
-reflect_obs({OldX,OldY},[true,false,false,true]) -> 
+reflect_obs({OldX,OldY},[true,false,false,true]) ->
     case random:uniform(2) of
         1 ->
             {OldX-?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY+?OBS_REFLECT_RATE}
     end;
 % right and up free
-reflect_obs({OldX,OldY},[false,true,true,false]) -> 
+reflect_obs({OldX,OldY},[false,true,true,false]) ->
     case random:uniform(2) of
         1 ->
             {OldX+?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY-?OBS_REFLECT_RATE}
     end;
 % right and down free
-reflect_obs({OldX,OldY},[false,true,false,true]) -> 
+reflect_obs({OldX,OldY},[false,true,false,true]) ->
     case random:uniform(2) of
         1 ->
             {OldX+?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY+?OBS_REFLECT_RATE}
     end;
 % right and left free
@@ -498,7 +498,7 @@ reflect_obs({OldX,OldY},[false,false,true,true]) ->
     case random:uniform(2) of
         1 ->
             {OldX+?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX-?OBS_REFLECT_RATE,OldY}
     end;
 % left, down and up free
@@ -506,7 +506,7 @@ reflect_obs({OldX,OldY},[true,false,false,false]) ->
     case random:uniform(3) of
         1 ->
             {OldX-?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY+?OBS_REFLECT_RATE};
         3 ->
             {OldX,OldY-?OBS_REFLECT_RATE}
@@ -516,7 +516,7 @@ reflect_obs({OldX,OldY},[false,true,false,false]) ->
     case random:uniform(3) of
         1 ->
             {OldX+?OBS_REFLECT_RATE,OldY};
-        2 -> 
+        2 ->
             {OldX,OldY-?OBS_REFLECT_RATE};
         3 ->
             {OldX,OldY+?OBS_REFLECT_RATE}
@@ -526,7 +526,7 @@ reflect_obs({OldX,OldY},[false,false,true,false]) ->
     case random:uniform(3) of
         1 ->
             {OldX,OldY-?OBS_REFLECT_RATE};
-        2 -> 
+        2 ->
             {OldX-?OBS_REFLECT_RATE,OldY};
         3 ->
             {OldX+?OBS_REFLECT_RATE,OldY}
@@ -536,7 +536,7 @@ reflect_obs({OldX,OldY},[false,false,false,true]) ->
     case random:uniform(3) of
         1 ->
             {OldX,OldY+?OBS_REFLECT_RATE};
-        2 ->   
+        2 ->
             {OldX-?OBS_REFLECT_RATE,OldY};
         3 ->
             {OldX+?OBS_REFLECT_RATE,OldY}
@@ -546,7 +546,7 @@ reflect_obs({OldX,OldY},[false,false,false,false]) ->
     case random:uniform(4) of
         1 ->
             {OldX+?OBS_REFLECT_RATE,OldY};
-        2 ->   
+        2 ->
             {OldX,OldY+?OBS_REFLECT_RATE};
         3 ->
             {OldX,OldY-?OBS_REFLECT_RATE};
@@ -560,7 +560,7 @@ reflect_obs({OldX,OldY},[false,false,false,false]) ->
 -spec do_check_obs(pos(),list()) -> boolean().
 do_check_obs({X,Y},Obs_list) ->
 	lists:any(fun(C) -> C=={X div 5,Y div 5} end,Obs_list).
-	
+
 %%%%-Notes----------------------------------------------------------------------
 
 % observer:start().

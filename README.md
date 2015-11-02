@@ -20,15 +20,15 @@ This is the currently UI:
 ![main_ui](img/ui.png)
 
 ### UI Controls
-Map - Select different maps for the simulation.
-Grid scale - Scale the UI, this does not effect the size of the simulation.
-Swarm Size - The amount of zombies to spawn.
-Population Size - The amount of humans to spawn.
-Amount of food - The amount of food to spawn.
-Start - Kick the simulation off.
-Pause - Send a pause message to all entities.
+* Map - Select different maps for the simulation.
+* Grid scale - Scale the UI, this does not effect the size of the simulation.
+* Swarm Size - The amount of zombies to spawn.
+* Population Size - The amount of humans to spawn.
+* Amount of food - The amount of food to spawn.
+* Start - Kick the simulation off.
+* Pause - Send a pause message to all entities.
 
-### The simulation
+### The Simulation
 There are three main types of entities involved in the simulation; zombies, humans and food. Humans eat food, zombies eat humans.
 
 Lighter coloured entities are humans, and the bright pink blobs are zombies.

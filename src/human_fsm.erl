@@ -111,21 +111,22 @@ run(move,#state{    x = X, y = Y, tile_size = TileSize,
                     num_columns = NumColumns, num_rows = NumRows,
                     tile = Tile, type = Type,
                     x_velocity = X_Velocity, y_velocity = Y_Velocity,
-                    viewer = Viewer,
                     hunger = Hunger, energy = Energy,
                     memory_map = MemoryMap,
                     path = Path} = State) ->
 
-    Olist = viewer:get_obs(Viewer),
+    NewViewer = tile:get_viewer(Tile),
+
+    Olist = viewer:get_obs(NewViewer),
 
     % Build a list of nearby zombies
-    Zlist = build_zombie_list(Viewer, X, Y,Olist),
+    Zlist = build_zombie_list(NewViewer, X, Y,Olist),
 
     % Build a list of nearby humans
-    Hlist = build_human_list(Viewer, X, Y,Olist),
+    Hlist = build_human_list(NewViewer, X, Y,Olist),
 
     % Build a list of nearby items and store them to memory
-    Ilist = viewer:get_items(Viewer),
+    Ilist = viewer:get_items(NewViewer),
 
         I_Sight_List = lists:filter(
                                 fun(
@@ -217,7 +218,7 @@ run(move,#state{    x = X, y = Y, tile_size = TileSize,
             gen_fsm:send_event_after(State#state.timeout, check_pos),
 
             {next_state,run,State#state{x=ReturnedX,y=ReturnedY,
-                                        tile = NewTile,
+                                        tile = NewTile, viewer = NewViewer,
                                         z_list = Zlist_Json, h_list = Hlist_Json,
                                         x_velocity = ObsVelX,
                                         y_velocity = ObsVelY,
@@ -256,8 +257,8 @@ handle_event(pause, StateName, StateData) ->
 handle_event(zombify, _StateName, #state{x = X, y = Y, tile_size = TileSize,
                     num_columns = NumColumns, num_rows = NumRows,
                     tile = Tile,
-                    viewer = Viewer, timeout = Timeout} = StateData) ->
-    {ok,Zombie}=supervisor:start_child(zombie_sup,[X,Y,Tile,TileSize,NumColumns,NumRows,Viewer,Timeout,0]),
+                    viewer = NewViewer, timeout = Timeout} = StateData) ->
+    {ok,Zombie}=supervisor:start_child(zombie_sup,[X,Y,Tile,TileSize,NumColumns,NumRows,NewViewer,Timeout,0]),
     zombie_fsm:start(Zombie),
     {stop, shutdown, StateData}.
 
@@ -486,27 +487,28 @@ calc_new_hungry_xy(Hlist, Zlist, NearestItem, NewHungerState, X, Y, MemoryList, 
 %%% Build a list of local zombie entities that are in sight
 build_zombie_list(Viewer, X, Y,Olist) ->
     ZombieList = viewer:get_zombies(Viewer),
-
-    Z_DistanceList = lists:map(fun(
-                                {ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
-                                    {abs(swarm_libs:pyth(X,Y,ZX,ZY)),
-                                    {ZomPid,{ZType,{{ZX,ZY},
-                                    {ZX_Velocity,ZY_Velocity}}}}}
-                                end,ZombieList),
-
-    Z_FilteredList = lists:filter(
-                                fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-                                    Dist =< ?SIGHT
-                                end,Z_DistanceList),
-
-        Z_Sight_List = lists:filter(
-                                fun({_,
-                                    {_,{_,{{ZX,ZY},
-                                    {_,_}}}}}) ->
-                                      los:findline(X,Y,ZX,ZY,Olist)
-                                      end,Z_FilteredList),
-
-    Zlist = lists:keysort(1,Z_Sight_List),
+    Zlist = swarm_libs:build_entity_list(ZombieList, X, Y, Olist,?SIGHT),
+    %
+    % Z_DistanceList = lists:map(fun(
+    %                             {ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
+    %                                 {abs(swarm_libs:pyth(X,Y,ZX,ZY)),
+    %                                 {ZomPid,{ZType,{{ZX,ZY},
+    %                                 {ZX_Velocity,ZY_Velocity}}}}}
+    %                             end,ZombieList),
+    %
+    % Z_FilteredList = lists:filter(
+    %                             fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
+    %                                 Dist =< ?SIGHT
+    %                             end,Z_DistanceList),
+    %
+    %     Z_Sight_List = lists:filter(
+    %                             fun({_,
+    %                                 {_,{_,{{ZX,ZY},
+    %                                 {_,_}}}}}) ->
+    %                                   los:findline(X,Y,ZX,ZY,Olist)
+    %                                   end,Z_FilteredList),
+    %
+    % Zlist = lists:keysort(1,Z_Sight_List),
     %return
     Zlist.
 
@@ -514,29 +516,31 @@ build_zombie_list(Viewer, X, Y,Olist) ->
 build_human_list(Viewer, X, Y,Olist) ->
     HumanList = viewer:get_humans(Viewer),
     NoSelfList = lists:keydelete(self(),1,HumanList),
-
-    H_DistanceList = lists:map(fun(
-                                {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
-                                    {abs(swarm_libs:pyth(X,Y,HX,HY)),
-                                    {Hpid,{human,{{HX,HY},
-                                    {HXV,HYV}}}}}
-                            end,NoSelfList),
-
-    H_FilteredList = lists:filter(
-                                fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-                                    Dist =< ?SIGHT
-                                end,H_DistanceList),
-
-        H_Sight_List = lists:filter(
-                                fun({_,
-                                    {_,{_,{{HX,HY},
-                                    {_,_}}}}}) ->
-                                      los:findline(X,Y,HX,HY,Olist)
-                                      end,H_FilteredList),
-
-    Hlist = lists:keysort(1,H_Sight_List),
-    %return
+    Hlist = swarm_libs:build_entity_list(NoSelfList, X, Y, Olist,?SIGHT),
     Hlist.
+
+    % H_DistanceList = lists:map(fun(
+    %                             {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
+    %                                 {abs(swarm_libs:pyth(X,Y,HX,HY)),
+    %                                 {Hpid,{human,{{HX,HY},
+    %                                 {HXV,HYV}}}}}
+    %                         end,NoSelfList),
+    %
+    % H_FilteredList = lists:filter(
+    %                             fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
+    %                                 Dist =< ?SIGHT
+    %                             end,H_DistanceList),
+    %
+    %     H_Sight_List = lists:filter(
+    %                             fun({_,
+    %                                 {_,{_,{{HX,HY},
+    %                                 {_,_}}}}}) ->
+    %                                   los:findline(X,Y,HX,HY,Olist)
+    %                                   end,H_FilteredList),
+    %
+    % Hlist = lists:keysort(1,H_Sight_List),
+    % %return
+    % Hlist.
 
 %%% Build memory map for items
 build_memory([], Map) ->

@@ -1,6 +1,6 @@
 -module(swarm_libs).
 -export([round/2, pyth/4, cleanup/6, restart_proc/2, jsonify_list/1,
-					obstructedmove/7]).
+					obstructedmove/7, build_entity_list/5]).
 
 round(Num,Precision) ->
 	P = math:pow(10,Precision),
@@ -113,3 +113,28 @@ jsonify_list([{Dist, {Pid,{Type,{{HeadX,HeadY},{Head_X_Vel,Head_Y_Vel}}}}}|Ls], 
     StringPid = list_to_binary(pid_to_list(Pid)),
     NewList = [[{id, StringPid},{type, Type}, {dist, Dist}, {x, HeadX}, {y, HeadY}, {x_velocity, Head_X_Vel}, {y_velocity, Head_Y_Vel}]| List],
     jsonify_list(Ls, NewList).
+
+%%%%%% Entity List Management
+build_entity_list (StartList, X, Y, Olist, SightLevel) ->
+	DistanceList = lists:map(fun(
+															{Pid,{Type,{{HX,HY},{HXV,HYV}}}}) ->
+																	{abs(swarm_libs:pyth(X,Y,HX,HY)),
+																	{Pid,{Type,{{HX,HY},
+																	{HXV,HYV}}}}}
+													end,StartList),
+
+	FilteredList = lists:filter(
+															fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
+																	Dist =< SightLevel
+															end,DistanceList),
+
+			SightList = lists:filter(
+															fun({_,
+																	{_,{_,{{HX,HY},
+																	{_,_}}}}}) ->
+																		los:findline(X,Y,HX,HY,Olist)
+																	end,FilteredList),
+
+	List = lists:keysort(1,SightList),
+	%return
+	List.

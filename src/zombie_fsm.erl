@@ -18,6 +18,8 @@
 -export([code_change/4,handle_event/3,handle_sync_event/4,
 		 handle_info/3,init/1,terminate/3]).
 
+-export([build_human_list/4, build_zombie_list/4]).
+
 -export([start_link/9,aimless/2,initial/2,
          start/1,pause/2,get_surroundings/2,
 		 find_visible/2,find_visible/3]).
@@ -80,57 +82,10 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
                     energy = Energy, energy_state = EnergyState} = State) ->
 
     NewViewer = tile:get_viewer(Tile),
-    ZombieList = viewer:get_zombies(NewViewer),
-    NoSelfList = lists:keydelete(self(),1,ZombieList),
+		Olist = viewer:get_obs(NewViewer),
 
-    Z_DistanceList = lists:map(fun(
-                                {ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
-                                    {abs(swarm_libs:pyth(X,Y,ZX,ZY)),
-                                    {ZomPid,{ZType,{{ZX,ZY},
-                                    {ZX_Velocity,ZY_Velocity}}}}}
-                            end,NoSelfList),
-
-    Olist = viewer:get_obs(NewViewer),
-
-    Z_FilteredList = lists:filter(
-                                fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-                                    Dist =< ?SIGHT
-                                end,Z_DistanceList),
-
-    Z_Sight_List = lists:filter(
-                                fun({_,
-                                    {_,{_,{{ZX,ZY},
-                                    {_,_}}}}}) ->
-                                      los:findline(X,Y,ZX,ZY,Olist)
-                                end,Z_FilteredList),
-
-    Zlist = lists:keysort(1,Z_Sight_List),
-
-
-    % Build a list of nearby humans
-    HumanList = viewer:get_humans(NewViewer),
-
-    H_DistanceList = lists:map(fun(
-                                {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
-                                    {abs(swarm_libs:pyth(X,Y,HX,HY)),
-                                    {Hpid,{human,{{HX,HY},
-                                    {HXV,HYV}}}}}
-                                end,HumanList),
-
-    H_FilteredList = lists:filter(
-                                fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-                                    Dist =< ?SIGHT
-                                end,H_DistanceList),
-
-    H_Sight_List = lists:filter(
-                                fun({_,
-                                    {_,{_,{{HX,HY},
-                                    {_,_}}}}}) ->
-                                      los:findline(X,Y,HX,HY,Olist)
-                                end,H_FilteredList),
-
-
-    Hlist = lists:keysort(1,H_Sight_List),
+		Zlist = build_zombie_list(NewViewer, X, Y, Olist),
+		Hlist = build_human_list(NewViewer, X, Y, Olist),
 
     %Olist = viewer:get_obs(NewViewer),
     Zlist_Json = swarm_libs:jsonify_list(Zlist),
@@ -293,3 +248,57 @@ obstructed(Olist,X,Y,NewX,NewY,VelX,VelY) ->
         false->
             {NewX,NewY,VelX,VelY}
     end.
+
+build_human_list(NewViewer, X, Y, Olist) ->
+	HumanList = viewer:get_humans(NewViewer),
+	Hlist = swarm_libs:build_entity_list(HumanList, X, Y, Olist,?SIGHT),
+	% H_DistanceList = lists:map(fun(
+	% 														{Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
+	% 																{abs(swarm_libs:pyth(X,Y,HX,HY)),
+	% 																{Hpid,{human,{{HX,HY},
+	% 																{HXV,HYV}}}}}
+	% 														end,HumanList),
+	%
+	% H_FilteredList = lists:filter(
+	% 														fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
+	% 																Dist =< ?SIGHT
+	% 														end,H_DistanceList),
+	%
+	% H_Sight_List = lists:filter(
+	% 														fun({_,
+	% 																{_,{_,{{HX,HY},
+	% 																{_,_}}}}}) ->
+	% 																	los:findline(X,Y,HX,HY,Olist)
+	% 														end,H_FilteredList),
+	%
+	%
+	% Hlist = lists:keysort(1,H_Sight_List),
+
+	Hlist.
+
+build_zombie_list(NewViewer, X, Y, Olist) ->
+	ZombieList = viewer:get_zombies(NewViewer),
+	NoSelfList = lists:keydelete(self(),1,ZombieList),
+	Zlist = swarm_libs:build_entity_list(NoSelfList, X, Y, Olist,?SIGHT),
+	% Z_DistanceList = lists:map(fun(
+	% 														{ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
+	% 																{abs(swarm_libs:pyth(X,Y,ZX,ZY)),
+	% 																{ZomPid,{ZType,{{ZX,ZY},
+	% 																{ZX_Velocity,ZY_Velocity}}}}}
+	% 												end,NoSelfList),
+	%
+	%
+	% Z_FilteredList = lists:filter(
+	% 														fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
+	% 																Dist =< ?SIGHT
+	% 														end,Z_DistanceList),
+	%
+	% Z_Sight_List = lists:filter(
+	% 														fun({_,
+	% 																{_,{_,{{ZX,ZY},
+	% 																{_,_}}}}}) ->
+	% 																	los:findline(X,Y,ZX,ZY,Olist)
+	% 														end,Z_FilteredList),
+	%
+	% Zlist = lists:keysort(1,Z_Sight_List),
+	Zlist.

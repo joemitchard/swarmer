@@ -3,8 +3,6 @@
 
 -behaviour(gen_server).
 
--include_lib("include/swarmer.hrl").
-
 %%% API
 -export([start_link/0,make_grid/4,get_grid_info/0,report/0,
          pause_entities/0, unpause_entities/0, start_entities/0,
@@ -20,10 +18,6 @@
 -define(SERVER, ?MODULE).
 -define(ZOMBIE_TIMEOUT, 600).
 -define(HUMAN_TIMEOUT, 600).
-
-% Record to Props List, for reporting
--define(R2P(Record), record_to_propslist(#state{} = Record) ->
-            lists:zip(record_info(fields, Record), tl(tuple_to_list(Record)))).
 
 -record(state,{
 % map viewer PID's to respective tiles
@@ -151,10 +145,9 @@ init([]) ->
 
 %%% calls
 handle_call(report,_From,State) ->
-    Report = make_report(),
+    Report = environment_helper:make_report(),
     % error_logger:error_report(Report),
     {reply,Report,State};
-
 
 handle_call(grid_info,_From,State) ->
   Rows = State#state.rows,
@@ -174,7 +167,7 @@ handle_call({make_grid,{Rows,Columns,TileSize,Obs_list}},_From,State) ->
 
   Grid = populate_grid(Rows,Columns,TileSize),
 
-  Viewers=add_viewers(Grid),
+  Viewers = add_viewers(Grid),
   % error_logger:error_report(Viewers),
 
   make_neighbourhood(Grid,Viewers),
@@ -183,8 +176,6 @@ handle_call({make_grid,{Rows,Columns,TileSize,Obs_list}},_From,State) ->
   Cord_list = lists:map(fun(I)-> X=I rem (10*Rows), Y=I div (10*Columns), T = list_to_atom("tile" ++  "X" ++ integer_to_list(X div 10) ++  "Y" ++ integer_to_list(Y div 10)),{T,{X,Y}} end,Obs_list),
     %error_logger:error_report(Cord_list),
 	lists:foreach(fun(K) -> tile:set_obs_list(K,proplists:get_all_values(K,Cord_list)) end,proplists:get_keys(Cord_list)),
-
-
   {reply,ok,State#state{rows=Rows,columns=Columns,tileSize=TileSize,viewerPropList=Viewers,obs_list=Cord_list}};
 
 handle_call({swarm,Num},_From,State) ->
@@ -255,7 +246,7 @@ populate_grid(RowCounter,Rows,Columns,TileSize,Grid) ->
 
 %%% take a list of tiles and add viewers to each one
 add_viewers(Grid) ->
- add_viewers(Grid,[]).
+  add_viewers(Grid,[]).
 add_viewers([],Viewers) ->
   Viewers;
 add_viewers(Grid,Viewers) ->
@@ -308,40 +299,6 @@ get_tile(Xpos,Ypos,#state{viewerPropList = ViewerPropList, tileSize = TileSize})
   Viewer = proplists:get_value(Tile,ViewerPropList),
   {Tile,Viewer}.
 
-%% Makes a report for the client.
-%% This report contains a props list of all the states for each supervisors children.
-make_report() ->
-    % Build a list of entities from the supervisors
-    Entities = lists:filtermap(
-        fun({_Id, Pid, _Type, [Module]}) ->
-            case Module:get_state(Pid) of
-                {ok,StateData} ->
-                    {true, StateData};
-                _ ->
-                    false
-            end
-        end, swarm_libs:get_entities_list()),
-
-    % Build a list of items from the supervisor
-    Items = lists:filtermap(
-        fun({_Id, Pid, _Type, [Module]}) ->
-            case Module:get_state(Pid) of
-                {ok,StateData} ->
-                    {true, StateData};
-                _ ->
-                    false
-            end
-        end, swarm_libs:get_supplies_list()),
-
-    % Remove all items that have been eaten
-    NonTakenItems = lists:filter(
-        fun([_,{_,Bool},_,_,_]) ->
-            Bool == false
-        end,Items),
-
-    Entities ++ NonTakenItems.
-
-
 make_neighbourhood(TileList,ViewerPropList) ->
   ViewerGeomList = setup_neighbours(ViewerPropList),
   do_make_neighbourhood(TileList,ViewerGeomList).
@@ -355,7 +312,6 @@ do_make_neighbourhood(TileList,ViewerGeomList) ->
 setup_neighbours(ViewerPropList) ->
   %reformat the viewer propslist inot one with geometry
   lists:map(fun({T,V})-> {tile:get_geometry(T),V} end, ViewerPropList).
-
 
 get_neighbours(Xo,Yo,ViewersWithGeometry) ->
   get_neighbours(Xo,Yo,ViewersWithGeometry,[]).
@@ -376,35 +332,6 @@ test_neighbour(Xo,Yo,X,Y,Size) ->
       (X =:= Xo + Size) or (X =:= Xo) or (X =:= Xo - Size)
       andalso
       (Y =:= Yo + Size) or (Y =:= Yo) or (Y =:= Yo - Size).
-
-% do_start_entities() ->
-%     apply_to_all_entities(start).
-%
-% do_pause_entities() ->
-%     apply_to_all_entities(pause).
-%
-% do_unpause_entities() ->
-%     apply_to_all_entities(unpause).
-%
-% do_action_entities_type(Action,Type) ->
-%     case Action of
-%       pause ->
-%         case Type of
-%           humans ->
-%             apply_to_all__humans(pause);
-%           zombies ->
-%             apply_to_all_zombies(pause)
-%         end;
-%       unpause ->
-%         case Type of
-%           humans ->
-%             apply_to_all__humans(unpause);
-%           zombies ->
-%             apply_to_all_zombies(unpause)
-%         end
-%     end.
-
-
 
 avoidObs(Ob_List,TileSize,Rows) ->
   random:seed(erlang:monotonic_time()),

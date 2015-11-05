@@ -112,7 +112,7 @@ set_items(Num) ->
 %%%% @end
 %%%%------------------------------------------------------------------------------
 start_entities() ->
-  do_start_entities().
+  swarm_libs:do_start_entities().
 
 %%%%------------------------------------------------------------------------------
 %%%% @doc
@@ -120,7 +120,7 @@ start_entities() ->
 %%%% @end
 %%%%------------------------------------------------------------------------------
 pause_entities() ->
-  do_pause_entities().
+  swarm_libs:do_pause_entities().
 
 %%%%------------------------------------------------------------------------------
 %%%% @doc
@@ -128,7 +128,7 @@ pause_entities() ->
 %%%% @end
 %%%%------------------------------------------------------------------------------
 unpause_entities() ->
-  do_unpause_entities().
+  swarm_libs:do_unpause_entities().
 
 %%%%------------------------------------------------------------------------------
 %%%% @doc
@@ -136,7 +136,7 @@ unpause_entities() ->
 %%%% @end
 %%%%------------------------------------------------------------------------------
 type_pause_unpause(Action,Type) ->
-  do_action_entities_type(Action,Type).
+  swarm_libs:do_action_entities_type(Action,Type).
 
 create_obs(Obs_list,TileSize) ->
 	gen_server:call(?MODULE,{create_obs_map,Obs_list,TileSize}).
@@ -191,14 +191,14 @@ handle_call({swarm,Num},_From,State) ->
   %kill entities
   swarm_libs:restart_proc(swarm_sup, zombie_sup),
   create_swarm(State,Num),
-  do_action_entities_type(pause, zombies),
+  swarm_libs:do_action_entities_type(pause, zombies),
   {reply,ok,State};
 
 handle_call({mob,Num},_From,State) ->
   %kill entities
   swarm_libs:restart_proc(swarm_sup, human_sup),
   create_mob(State,Num),
-  do_action_entities_type(pause, humans),
+  swarm_libs:do_action_entities_type(pause, humans),
   {reply,ok,State};
 
 handle_call({items,Num},_From,State) ->
@@ -320,7 +320,7 @@ make_report() ->
                 _ ->
                     false
             end
-        end, get_entities_list()),
+        end, swarm_libs:get_entities_list()),
 
     % Build a list of items from the supervisor
     Items = lists:filtermap(
@@ -331,7 +331,7 @@ make_report() ->
                 _ ->
                     false
             end
-        end, get_supplies_list()),
+        end, swarm_libs:get_supplies_list()),
 
     % Remove all items that have been eaten
     NonTakenItems = lists:filter(
@@ -377,62 +377,34 @@ test_neighbour(Xo,Yo,X,Y,Size) ->
       andalso
       (Y =:= Yo + Size) or (Y =:= Yo) or (Y =:= Yo - Size).
 
-do_start_entities() ->
-    apply_to_all_entities(start).
+% do_start_entities() ->
+%     apply_to_all_entities(start).
+%
+% do_pause_entities() ->
+%     apply_to_all_entities(pause).
+%
+% do_unpause_entities() ->
+%     apply_to_all_entities(unpause).
+%
+% do_action_entities_type(Action,Type) ->
+%     case Action of
+%       pause ->
+%         case Type of
+%           humans ->
+%             apply_to_all__humans(pause);
+%           zombies ->
+%             apply_to_all_zombies(pause)
+%         end;
+%       unpause ->
+%         case Type of
+%           humans ->
+%             apply_to_all__humans(unpause);
+%           zombies ->
+%             apply_to_all_zombies(unpause)
+%         end
+%     end.
 
-do_pause_entities() ->
-    apply_to_all_entities(pause).
 
-do_unpause_entities() ->
-    apply_to_all_entities(unpause).
-
-do_action_entities_type(Action,Type) ->
-    case Action of
-      pause ->
-        case Type of
-          humans ->
-            apply_to_all__humans(pause);
-          zombies ->
-            apply_to_all_zombies(pause)
-        end;
-      unpause ->
-        case Type of
-          humans ->
-            apply_to_all__humans(unpause);
-          zombies ->
-            apply_to_all_zombies(unpause)
-        end
-    end.
-
-apply_to_all_entities(Fun) ->
-    lists:foreach(
-        fun({_Id, Pid, _Type, [Module]}) ->
-            Module:Fun(Pid)
-        end, get_entities_list()).
-
-apply_to_all_zombies(Fun) ->
-    lists:foreach(
-        fun({_Id, Pid, _Type, [Module]}) ->
-            Module:Fun(Pid)
-        end, get_zombies_list()).
-
-apply_to_all__humans(Fun) ->
-    lists:foreach(
-        fun({_Id, Pid, _Type, [Module]}) ->
-            Module:Fun(Pid)
-        end, get_humans_list()).
-
-get_entities_list() ->
-  get_zombies_list() ++ get_humans_list().
-
-get_zombies_list() ->
-  supervisor:which_children(zombie_sup).
-
-get_humans_list() ->
-  supervisor:which_children(human_sup).
-
-get_supplies_list() ->
-  supervisor:which_children(supplies_sup).
 
 avoidObs(Ob_List,TileSize,Rows) ->
   random:seed(erlang:monotonic_time()),

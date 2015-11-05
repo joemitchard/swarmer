@@ -121,7 +121,11 @@ aimless(move,#state{speed = Speed, x = X, y = Y, tile_size = TileSize,
     TargetX = round(X + Limited_X_Velocity),
     TargetY = round(Y + Limited_Y_Velocity),
 
-    {NewX,NewY,ObsXVel,ObsYVel} = obstructed(Olist,X,Y,TargetX,TargetY,Limited_X_Velocity,Limited_Y_Velocity),
+    {NewX,NewY,ObsXVel,ObsYVel} = swarm_libs:obstructed(Olist,X,Y,
+																													TargetX,
+																													TargetY,
+																													Limited_X_Velocity,
+																													Limited_Y_Velocity),
 
     case (NewX < 0) or (NewY < 0) or (NewX > NumColumns * (TileSize-1)) or (NewY > NumRows * (TileSize-1)) of
         true -> % We are off the screen!
@@ -215,8 +219,6 @@ make_choice([],[],_State) ->
             {1,1}
     end;
 
-
-
 make_choice(_,[{Dist, {Pid,{_,{{_,_},{_,_}}}}}|_Hlist],_State) when Dist < ?PERSONAL_SPACE ->
 %    KILL HUMAN;
     case random:uniform(3) of
@@ -238,67 +240,13 @@ make_choice(Zlist,_, State) ->
     {Vx,Vy} = boids_functions:velocity(Zlist,State#state.x_velocity,State#state.y_velocity,?VELOCITY_EFFECT),
     {(Fx+Vx),(Fy+Vy)}.
 
-obstructed([],_X,_Y,NewX,NewY,VelX,VelY) ->
-    {NewX,NewY,VelX,VelY};
-obstructed(Olist,X,Y,NewX,NewY,VelX,VelY) ->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            swarm_libs:obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
-        false->
-            {NewX,NewY,VelX,VelY}
-    end.
-
 build_human_list(NewViewer, X, Y, Olist) ->
 	HumanList = viewer:get_humans(NewViewer),
 	Hlist = swarm_libs:build_entity_list(HumanList, X, Y, Olist,?SIGHT),
-	% H_DistanceList = lists:map(fun(
-	% 														{Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
-	% 																{abs(swarm_libs:pyth(X,Y,HX,HY)),
-	% 																{Hpid,{human,{{HX,HY},
-	% 																{HXV,HYV}}}}}
-	% 														end,HumanList),
-	%
-	% H_FilteredList = lists:filter(
-	% 														fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-	% 																Dist =< ?SIGHT
-	% 														end,H_DistanceList),
-	%
-	% H_Sight_List = lists:filter(
-	% 														fun({_,
-	% 																{_,{_,{{HX,HY},
-	% 																{_,_}}}}}) ->
-	% 																	los:findline(X,Y,HX,HY,Olist)
-	% 														end,H_FilteredList),
-	%
-	%
-	% Hlist = lists:keysort(1,H_Sight_List),
-
 	Hlist.
 
 build_zombie_list(NewViewer, X, Y, Olist) ->
 	ZombieList = viewer:get_zombies(NewViewer),
 	NoSelfList = lists:keydelete(self(),1,ZombieList),
 	Zlist = swarm_libs:build_entity_list(NoSelfList, X, Y, Olist,?SIGHT),
-	% Z_DistanceList = lists:map(fun(
-	% 														{ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
-	% 																{abs(swarm_libs:pyth(X,Y,ZX,ZY)),
-	% 																{ZomPid,{ZType,{{ZX,ZY},
-	% 																{ZX_Velocity,ZY_Velocity}}}}}
-	% 												end,NoSelfList),
-	%
-	%
-	% Z_FilteredList = lists:filter(
-	% 														fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-	% 																Dist =< ?SIGHT
-	% 														end,Z_DistanceList),
-	%
-	% Z_Sight_List = lists:filter(
-	% 														fun({_,
-	% 																{_,{_,{{ZX,ZY},
-	% 																{_,_}}}}}) ->
-	% 																	los:findline(X,Y,ZX,ZY,Olist)
-	% 														end,Z_FilteredList),
-	%
-	% Zlist = lists:keysort(1,Z_Sight_List),
 	Zlist.

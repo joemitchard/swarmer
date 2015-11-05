@@ -27,10 +27,10 @@
          handle_info/3,init/1,terminate/3]).
 
 %%% system functions
--export([start_link/8,run/2,initial/2,start/1,pause/2]).
+-export([start_link/8, run/2, initial/2, start/1, pause/2]).
 
 %%% API exports
--export([get_state/1, pause/1, unpause/1,zombify/1]).
+-export([get_state/1, pause/1, unpause/1, zombify/1]).
 
 -record(state, {id,
                 % localisation
@@ -195,7 +195,11 @@ run(move,#state{    x = X, y = Y, tile_size = TileSize,
 
     TargetX = round(X + Limited_X_Velocity),
     TargetY = round(Y + Limited_Y_Velocity),
-    {NewX,NewY,ObsVelX,ObsVelY} = obstructed(Olist,X,Y,TargetX,TargetY,Limited_X_Velocity,Limited_Y_Velocity),
+    {NewX,NewY,ObsVelX,ObsVelY} = swarm_libs:obstructed(Olist,X,Y,
+                                                          TargetX,
+                                                          TargetY,
+                                                          Limited_X_Velocity,
+                                                          Limited_Y_Velocity),
 
     case (NewX < 0) or (NewY < 0) or (NewX > NumColumns * (TileSize-1)) or (NewY > NumRows * (TileSize-1)) of
         true -> % We are off the screen!
@@ -211,7 +215,7 @@ run(move,#state{    x = X, y = Y, tile_size = TileSize,
                     % Left the tile, find new tile and remove self from old one.
                     tile:remove_entity(Tile, self(), Type),
                     % Generates an atom based on location, this will be a name of a tile registered to Erlang
-                    list_to_atom("tile" ++  "X" ++ integer_to_list(NewXTile) ++  "Y" ++ integer_to_list(NewYTile))
+                    list_to_atom("tile" ++ "X" ++ integer_to_list(NewXTile) ++ "Y" ++ integer_to_list(NewYTile))
             end,
 
             {ReturnedX,ReturnedY} = tile:update_entity(NewTile,{self(),{X,Y}, Type},{NewX, NewY},{X_Velocity, Y_Velocity}),
@@ -421,19 +425,6 @@ nearest_memory_item([Head|Rest], Nearest, CurrentPos) ->
             nearest_memory_item(Rest,Nearest,CurrentPos)
     end.
 
-%%% Check if my next position is obstructed
-obstructed([],_X,_Y,NewX,NewY,VelX,VelY) ->
-    {NewX,NewY,VelX,VelY};
-obstructed(Olist,X,Y,NewX,NewY,VelX,VelY) ->
-    Member = lists:any(fun({A,B}) -> NewY div 5 == B andalso NewX div 5 == A end,Olist),
-    case Member of
-        true->
-            swarm_libs:obstructedmove(Olist,X,Y,NewX,NewY,VelX,VelY);
-        false->
-            {NewX,NewY,VelX,VelY}
-    end.
-
-
 
 %%% Calculate the new levels for hunger,energy
 %%% Also work out if the hunger state has changed
@@ -488,28 +479,6 @@ calc_new_hungry_xy(Hlist, Zlist, NearestItem, NewHungerState, X, Y, MemoryList, 
 build_zombie_list(Viewer, X, Y,Olist) ->
     ZombieList = viewer:get_zombies(Viewer),
     Zlist = swarm_libs:build_entity_list(ZombieList, X, Y, Olist,?SIGHT),
-    %
-    % Z_DistanceList = lists:map(fun(
-    %                             {ZomPid,{ZType,{{ZX,ZY},{ZX_Velocity,ZY_Velocity}}}}) ->
-    %                                 {abs(swarm_libs:pyth(X,Y,ZX,ZY)),
-    %                                 {ZomPid,{ZType,{{ZX,ZY},
-    %                                 {ZX_Velocity,ZY_Velocity}}}}}
-    %                             end,ZombieList),
-    %
-    % Z_FilteredList = lists:filter(
-    %                             fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-    %                                 Dist =< ?SIGHT
-    %                             end,Z_DistanceList),
-    %
-    %     Z_Sight_List = lists:filter(
-    %                             fun({_,
-    %                                 {_,{_,{{ZX,ZY},
-    %                                 {_,_}}}}}) ->
-    %                                   los:findline(X,Y,ZX,ZY,Olist)
-    %                                   end,Z_FilteredList),
-    %
-    % Zlist = lists:keysort(1,Z_Sight_List),
-    %return
     Zlist.
 
 %%% Build a list of local zombie entities that are in sight
@@ -518,29 +487,6 @@ build_human_list(Viewer, X, Y,Olist) ->
     NoSelfList = lists:keydelete(self(),1,HumanList),
     Hlist = swarm_libs:build_entity_list(NoSelfList, X, Y, Olist,?SIGHT),
     Hlist.
-
-    % H_DistanceList = lists:map(fun(
-    %                             {Hpid,{human,{{HX,HY},{HXV,HYV}}}}) ->
-    %                                 {abs(swarm_libs:pyth(X,Y,HX,HY)),
-    %                                 {Hpid,{human,{{HX,HY},
-    %                                 {HXV,HYV}}}}}
-    %                         end,NoSelfList),
-    %
-    % H_FilteredList = lists:filter(
-    %                             fun({Dist,{_,{_,{{_,_},{_,_}}}}}) ->
-    %                                 Dist =< ?SIGHT
-    %                             end,H_DistanceList),
-    %
-    %     H_Sight_List = lists:filter(
-    %                             fun({_,
-    %                                 {_,{_,{{HX,HY},
-    %                                 {_,_}}}}}) ->
-    %                                   los:findline(X,Y,HX,HY,Olist)
-    %                                   end,H_FilteredList),
-    %
-    % Hlist = lists:keysort(1,H_Sight_List),
-    % %return
-    % Hlist.
 
 %%% Build memory map for items
 build_memory([], Map) ->
